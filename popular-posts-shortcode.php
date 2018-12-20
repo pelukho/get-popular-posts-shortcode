@@ -16,6 +16,40 @@ function pss_options() {
 	global $pss_page;
 	add_menu_page('Настройки плагина', 'Найстройки плагина', 'administrator', $pss_page, 'pss_option_page'); 
 }		 
+
+add_action('admin_head', 'pss_scripts', 50); 
+function pss_scripts() {
+	echo '
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
+	<style>
+		.select2-container {
+			min-width: 300px;
+		}
+	</style>
+	<script>
+		jQuery(document).ready(function() {
+		    jQuery("#my_select").select2();
+		    if(jQuery("input[type=\'radio\']").val() == "some"){		    		
+	    		jQuery(".selected").text("Только: ");	    		
+	    	} else {
+	    		jQuery(".selected").text("Кроме: ");	    		
+	    	}
+		    jQuery("input[type=\'radio\']").change( function(){		    					
+		    	if(jQuery(this).val() == "some"){		    		
+		    		jQuery(".selected").text("Только: ");
+		    		
+		    	} else {
+		    		jQuery(".selected").text("Кроме: ");
+		    		
+		    	}
+		    });
+		});
+	</script>';
+
+}
+
+
 function pss_option_page(){
 	global $pss_page;
 	?><div class="wrap">
@@ -54,24 +88,13 @@ function pss_option_settings() {
 	add_settings_field( 'my_radio', 'Выберите какие посты могут быть популярные', 'pss_option_display_settings', $pss_page, 'pss_section_2', $pss_field_params );
 
 	$options = get_option('pss_options');
-
-	if( $options['my_radio'] == 'all' ){		
+		
 		$pss_field_params = array(
 			'type'      => 'select',
 			'id'        => 'my_select',		
 			'vals'		=> $arr
 		);
-		add_settings_field( 'my_select_field', 'Выберите посты, которые нужно исключить', 'pss_option_display_settings', $pss_page, 'pss_section_2', $pss_field_params );
-	}
-	if( $options['my_radio'] == 'some' ){		
-		$pss_field_params = array(
-			'type'      => 'select',
-			'id'        => 'my_select',		
-			'vals'		=> $arr
-		);
-		add_settings_field( 'my_select_field', 'Выберите посты, которые нужно добавлять', 'pss_option_display_settings', $pss_page, 'pss_section_2', $pss_field_params );
-	}
- 
+		add_settings_field( 'my_select_field', '<span class="selected"></span>', 'pss_option_display_settings', $pss_page, 'pss_section_2', $pss_field_params ); 
 }		
  
 function pss_option_display_settings($args) {
@@ -91,12 +114,17 @@ function pss_option_display_settings($args) {
 			echo "</fieldset>";  
 		break; 
 		case 'select':
-			echo "<select id='$id' name='" . $option_name . "[$id]'>";
-			foreach($vals as $v=>$l){
-				$selected = ($o[$id] == $v) ? "selected='selected'" : '';  				
-				echo "<option value='$v' $selected>$l</option>";
-			}
-			echo ($desc != '') ? $desc : "";
+			echo "<select multiple='multiple' id='$id' name='" . $option_name . "[$id][]'>";
+			foreach($vals as $v=>$l){				
+				if( isset( $o[$id] ) && !empty( $o[$id] )){
+					if( in_array($v, $o[$id]) ){
+						$selected = "selected='selected'";
+					} else {
+						$selected = '';		
+					}
+				}			
+				echo "<option value='$v' $selected>$l</option>";				
+			}			
 			echo "</select>";  
 		break;
 	}
@@ -151,7 +179,7 @@ function pss_shortcode_func(){
 		$sc_query = new WP_Query( 
 			array( 
 				'post_type'=>'post', 
-				'post__not_in' => array( $options['my_select'] ), 
+				'post__not_in' => $options['my_select'], 
 				'orderby' => 'count_views', 
 				'posts_per_page' => 3
 			) 
@@ -160,7 +188,7 @@ function pss_shortcode_func(){
 		$sc_query = new WP_Query( 
 			array( 
 				'post_type'=>'post', 
-				'post__in' => array( $options['my_select'] ), 
+				'post__in' => $options['my_select'], 
 				'orderby' => 'count_views',
 				'posts_per_page' => 3
 			)  
